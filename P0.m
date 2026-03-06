@@ -100,7 +100,3 @@ ske_occipital = skewness(passa_banda_occipital)
 
 kurt_frontal = kurtosis(passa_banda_frontal)
 kurt_occipital = kurtosis(passa_banda_occipital)
-figure
-plot(passo, passa_banda_occipital)
-figure
-

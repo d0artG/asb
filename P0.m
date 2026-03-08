@@ -102,7 +102,7 @@ kurt_frontal = kurtosis(passa_banda_frontal);
 kurt_occipital = kurtosis(passa_banda_occipital);
 
 %3.13
-%[hdr, new_data]=edfread("EEG_ECG_EMG.edf");
+[hdr, new_data]=edfread("EEG_ECG_EMG.edf");
 
 %3.14
 fs=hdr.samples(1,1);
@@ -111,20 +111,23 @@ fs=hdr.samples(1,1);
 samples_min= 60*fs;
 ECG = new_data(33,:);
 ECG_60s = new_data(33,1:samples_min);
+
 %3.16
 t=1/fs:1/fs:60;
 plot(t,ECG_60s)
+%figure
 
 %3.17
-[pxx,F]= pwelch(ECG,8192,1024,[],fs);
+[pxx,F]= pwelch(ECG,8192,1024,[],fs); %pxx é a potência e F a frequência a 
+%que essa potência corresponde
 plot(F, pxx);
-figure
+%figure
 P_max = F(pxx == max(pxx));
 freq_cardiaca = 60*P_max; % porque P=f/T
 
 %3.18
 plot(t,ECG_60s)
-[yR, xR] = findpeaks(ECG_60s, fs, "MinPeakHeight", 0.2); 
+[yR, xR] = findpeaks(ECG_60s, fs, "MinPeakHeight", 0.2); %altura minima de 0.2
 [yS,xS] = findpeaks(-ECG_60s, fs, "MinPeakHeight", 0.1, "MinPeakWidth", 0.13);
 [yQ,xQ] = findpeaks(-ECG_60s, fs, "MinPeakHeight", 0.1,"MinPeakWidth", 0.01, "MaxPeakWidth", 0.05);
 plot(t, ECG_60s)
@@ -135,4 +138,13 @@ plot(xQ, -yQ, "^b")
 hold off
 
 %3.19
+EMG = new_data(34,:);
+plot(EMG)
+[pxx4,F4]= pwelch(EMG,500,100,[],fs);
+%plot(F4, pxx4)
+%spectrogram(EMG,2048,1024,[],fs);
 
+%3.20
+EMG_quadrado = power(EMG, 2);
+EMG_mean = movmean(EMG_quadrado,90000);
+plot(EMG_mean)

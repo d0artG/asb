@@ -1,6 +1,6 @@
 %3
 %3.1
-[hdr, data] = edfread("EEG_ECG_EMG.edf")
+[hdr, data] = edfread("EEG_ECG_EMG.edf");
 
 %3.2
 fs = hdr.samples(1,1); %500Hz
@@ -21,8 +21,8 @@ plot(f, p);
 figure
 
 %3.6 - remover a média
-ECG_mean_60s = mean(ECG_60s)
-ECG_centered_60s = ECG_60s - ECG_mean_60s
+ECG_mean_60s = mean(ECG_60s);
+ECG_centered_60s = ECG_60s - ECG_mean_60s;
 plot(t, ECG_centered_60s)
 figure
 [p2,f2]= pwelch(ECG_centered_60s,8192,1024,[],fs);
@@ -47,3 +47,10 @@ plot(xR,yR, "^g")
 plot(xS, -yS, "or")
 plot(xQ, -yQ, "^b")
 hold off
+
+%3.9
+x = linspace(0,fs,60);
+inte=0.00998185+0.0060136+0.00676846;
+y1 = (0.00998185/inte)*sin(0.854492*x)+(0.0060136/inte)*sin(1.77002*x)+(0.00676846/inte)*sin(2.62451*x);
+plot(x,y1)
+title('Combine Plots')

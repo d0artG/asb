@@ -1,12 +1,16 @@
+clear 
 [data,numChan,labels,txt,fs,gain,prefiltering,ChanDim]=eeg_read_bdf("EMG_PedroMoura\EMG_PedroMoura\Voluntário1\voluntário1_01.bdf","all","n");
 
-n_amostras = size(data, 2);
-
-tempo_amostra_total = n_amostras/fs;
-T = 20*fs;
-vinte_seg = 1:(T );
-
-figure(1), plot(vinte_seg, data(1, vinte_seg)), title("Primeiros 20 Segundos")
+% A = data(1:32,1:1001);
+% n_amostras = size(A, 2);
+% 
+% tempo_amostra_total = n_amostras/fs;
+% T = 20*fs;
+% vinte_seg = 1:(T );
+% media2 = mean(A,2);
+% Complot(A)
+% 
+% figure(1), plot(vinte_seg, data(1, vinte_seg)), title("Primeiros 20 Segundos")
 
 media = mean(data,2);
 data_no_mean = data - media;

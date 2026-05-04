@@ -1,10 +1,10 @@
 %% Inicialização dos dados
-
-[data,numChan,labels,txt,fs,gain,prefiltering,ChanDim]=eeg_read_bdf("D:\FCT\4º ANO\ASB - Análise de Sinais Biomédicos\Projeto\EMG_PedroMoura\EMG_PedroMoura\Voluntário1\voluntário1_01.bdf","all","n");
+clear
+[data,numChan,labels,txt,fs,gain,prefiltering,ChanDim]=eeg_read_bdf("EMG_PedroMoura\EMG_PedroMoura\Voluntário1\voluntário1_01.bdf","all","n");
 
 n_amostras = 1001;
 dez_segundos = fs * 10;
-dados = data(1:32, 1:dez_segundos); %apenas as 32 primeiras linhas e os primeiros 10 segundos
+dados = data(1:32, :); %apenas as 32 primeiras linhas e os primeiros 10 segundos
 
 % porque é que usamos os 32 canais ao invés de 1? o fastica faz a separação
 % em componentes independentes, onde o número de componentes independentes
@@ -20,9 +20,14 @@ tempo_dados = n_amostras/fs; %converter as amostras em tempo
 % dados_sem_media = dados - media_dados; Retirar a média se necessário
 % figure(1), plot(tempo_dados, data(1, tempo_dados)), title("Primeiras 1000 amostras");
 
-%% Fast Independent Component Analysis (FastICA)
+%% Plot dados originais
+figure
+Complot(dados - mean(dados, 2))
 
-[icasig, A, W] = fastica(dados, 'numOfIC', 32, 'approach', 'symm','g', 'tanh', 'displayMode',"on");
+%% Fast Independent Component Analysis (FastICA)
+maxEig = 10;
+
+[icasig, A, W] = fastica(dados, 'numOfIC', 32, 'approach', 'symm','g', 'tanh', 'displayMode','on','lastEig',maxEig);
 
 % qual o número indicado de componentes? posso usar até 32.
 %
@@ -40,17 +45,66 @@ tempo_dados = n_amostras/fs; %converter as amostras em tempo
 % x(t) = A * s(t)
 % S = W * X
 
-figure;
-for i = 1:32
-    subplot(8,4,i);
+%% Removemos a média das componentes
+media_ica = mean(icasig, 2);
+icasig_nomean = icasig - media_ica;
+
+%% Visualizar o sinal com média
+
+figure
+for i = 1:maxEig
+    subplot(maxEig,1,i)
     plot(icasig(i,:));
     title(['IC ' num2str(i)]);
+end 
+
+figure
+%Visualizar o espetro de potencia
+for i = 1:maxEig
+    subplot(maxEig,1,i)
+    plot(pspectrum(icasig(i,:)));
+    %xlim([0 800])
+    title(['IC ' num2str(i)]);
+end 
+
+
+%% Visualizar o sinal sem média
+
+figure
+for i = 1:maxEig
+    subplot(maxEig,1,i)
+    plot(icasig_nomean(i,:));
+    title(['IC ' num2str(i)]);
+end 
+
+figure
+%Visualizar o espetro de potencia
+for i = 1:maxEig
+    subplot(maxEig,1,i)
+    plot(pspectrum(icasig_nomean(i,:)));
+    %xlim([0 800])
+    title(['IC ' num2str(i)]);
+end 
+
+%% Encontrar IC correspondente ao ECG
+
+%Observa-se que o IC que tem o maior pico na região do 1 Hz corresponde ao
+%sinal ECG. Ainda assim, este altera de posição. Automatizemos de forma a
+%encontrar sempre o IC correto
+
+picos_potencia = zeros(1,maxEig);
+
+for i = 1:maxEig
+    p_spectre = pspectrum(icasig_nomean(i,:));
+    picos_potencia(i) = max(p_spectre(1:3));
 end
+
+[maior_pico, id_ecg] = min(picos_potencia);
 
 %% Plots para encontrar o mais semelhante ao ECG
 
 figure;
-plot(icasig(31, :));
+plot(icasig_nomean(id_ecg, :));
 
 % a componente IC30 é a que mais se assemelha com um ECG (?)
 % VERIFICAR COM UM ESPETRO DE FREQUÊNCIAS!!!
@@ -58,15 +112,14 @@ plot(icasig(31, :));
 
 %% Remover o ECG do EMG
 
-ecg_index = 20;
-componente_ecg = icasig(ecg_index, :); %guardar o ecg
-icasig(ecg_index, :) = 0; %tornar a componente do ECG nula
-dados_sem_ecg = A * icasig;
+componente_ecg = icasig_nomean(id_ecg, :); %guardar o ecg
+icasig_nomean(id_ecg, :) = 0; %tornar a componente do ECG nula
+dados_sem_ecg = A * icasig_nomean;
 
-%% Isolar o ECG - matriz nula apenas com os dados da componente 31
+%% Isolar o ECG - matriz nula apenas com os dados da componente ECG
 
-ecg = zeros(size(icasig));
-ecg(ecg_index, :) = componente_ecg;
+ecg = zeros(size(icasig_nomean));
+ecg(id_ecg, :) = componente_ecg;
 ecg_reconstruido = A * ecg; % X = A * S
 
 %% Plots de comparação
@@ -74,14 +127,17 @@ ecg_reconstruido = A * ecg; % X = A * S
 figure;
 subplot(3,1,1);
 plot(dados(1,:));
+xlim([0 8E3])
 title('Sinal original');
 
 subplot(3,1,2);
 plot(dados_sem_ecg(1,:));
+xlim([0 8E3])
 title('EMG sem ECG');
 
 subplot(3,1,3);
 plot(ecg_reconstruido(1,:));
+xlim([0 8E3])
 title('ECG extraído');
 
 % cada que fazemos o fastica, a componente que se assemelha mais com o ECG
@@ -90,3 +146,29 @@ title('ECG extraído');
 % componente que se assemelha mais a um ECG à base do "olhómetro".
 % temos de fazer um algoritmo para identificar automaticamente a componente
 % que se assemelha mais ao ECG
+
+%% Complot final
+figure
+Complot(ecg_reconstruido)
+
+figure
+Complot(dados_sem_ecg)
+
+%% Sinal modelo (nao está a funcionar)
+ECG = ecg_reconstruido(1,:);
+[yR, xR] = findpeaks(ECG, "MinPeakHeight",0.9E4, MinPeakDistance=1000);
+window_size = 0.4; %em tempo
+window_samples = round(window_size * fs); %em samples
+janela = [];
+
+for i = 1:length(xR)
+    margem_esq = round(xR(i) - window_samples);
+    margem_dir = round(xR(i) + window_samples);
+
+    janela(i,:) = ECG(margem_esq:margem_dir);
+end
+%% 
+modelo = mean(janela, 1);
+t_janela = (-window_samples:window_samples)/fs;
+figure
+plot(modelo);

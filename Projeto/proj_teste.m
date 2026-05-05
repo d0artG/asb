@@ -25,9 +25,9 @@ figure
 Complot(dados - mean(dados, 2))
 
 %% Fast Independent Component Analysis (FastICA)
-maxEig = 10;
+maxEig = 5;
 
-[icasig, A, W] = fastica(dados, 'numOfIC', 32, 'approach', 'symm','g', 'tanh', 'displayMode','on','lastEig',maxEig);
+[icasig, A, W] = fastica(dados, 'numOfIC', 16, 'approach', 'symm','g', 'tanh', 'displayMode','on','lastEig',maxEig);
 
 % qual o número indicado de componentes? posso usar até 32.
 %
@@ -62,7 +62,7 @@ figure
 %Visualizar o espetro de potencia
 for i = 1:maxEig
     subplot(maxEig,1,i)
-    plot(pspectrum(icasig(i,:)));
+    plot(pwelch(icasig(i,:)));
     %xlim([0 800])
     title(['IC ' num2str(i)]);
 end 
@@ -81,7 +81,7 @@ figure
 %Visualizar o espetro de potencia
 for i = 1:maxEig
     subplot(maxEig,1,i)
-    plot(pspectrum(icasig_nomean(i,:)));
+    plot(pwelch(icasig_nomean(i,:)));
     %xlim([0 800])
     title(['IC ' num2str(i)]);
 end 
@@ -95,7 +95,7 @@ end
 picos_potencia = zeros(1,maxEig);
 
 for i = 1:maxEig
-    p_spectre = pspectrum(icasig_nomean(i,:));
+    p_spectre = pwelch(icasig_nomean(i,:));
     picos_potencia(i) = max(p_spectre(1:3));
 end
 
@@ -113,12 +113,13 @@ plot(icasig_nomean(id_ecg, :));
 %% Remover o ECG do EMG
 
 componente_ecg = icasig_nomean(id_ecg, :); %guardar o ecg
-icasig_nomean(id_ecg, :) = 0; %tornar a componente do ECG nula
-dados_sem_ecg = A * icasig_nomean;
+icasig_noecg = icasig_nomean;
+icasig_noecg(id_ecg, :) = 0; %tornar a componente do ECG nula
+dados_sem_ecg = A * icasig_noecg;
 
 %% Isolar o ECG - matriz nula apenas com os dados da componente ECG
 
-ecg = zeros(size(icasig_nomean));
+ecg = zeros(size(icasig_noecg));
 ecg(id_ecg, :) = componente_ecg;
 ecg_reconstruido = A * ecg; % X = A * S
 
@@ -127,17 +128,17 @@ ecg_reconstruido = A * ecg; % X = A * S
 figure;
 subplot(3,1,1);
 plot(dados(1,:));
-xlim([0 8E3])
+%xlim([0 8E3])
 title('Sinal original');
 
 subplot(3,1,2);
 plot(dados_sem_ecg(1,:));
-xlim([0 8E3])
+%xlim([0 8E3])
 title('EMG sem ECG');
 
 subplot(3,1,3);
 plot(ecg_reconstruido(1,:));
-xlim([0 8E3])
+%xlim([0 8E3])
 title('ECG extraído');
 
 % cada que fazemos o fastica, a componente que se assemelha mais com o ECG
@@ -154,12 +155,22 @@ Complot(ecg_reconstruido)
 figure
 Complot(dados_sem_ecg)
 
-%% Sinal modelo (nao está a funcionar)
+%% Cálculo frequência cardíaca
 ECG = ecg_reconstruido(1,:);
-[yR, xR] = findpeaks(ECG, "MinPeakHeight",0.9E4, MinPeakDistance=1000);
+[yR, xR] = findpeaks(ECG, "MinPeakHeight",0.84E4, MinPeakDistance=1000);
+
+picos = size(xR,2);
+samples_total=size(ecg_reconstruido,2);
+FC=picos/samples_total*60*fs;
+%%
+
+%{
+
 window_size = 0.4; %em tempo
 window_samples = round(window_size * fs); %em samples
 janela = [];
+
+
 
 for i = 1:length(xR)
     margem_esq = round(xR(i) - window_samples);
@@ -167,8 +178,10 @@ for i = 1:length(xR)
 
     janela(i,:) = ECG(margem_esq:margem_dir);
 end
-%% 
+
 modelo = mean(janela, 1);
 t_janela = (-window_samples:window_samples)/fs;
 figure
 plot(modelo);
+%}
+
